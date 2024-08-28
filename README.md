@@ -35,9 +35,14 @@ Note: The input sequence length, output sequence length, and tensor parallel (TP
 
 ## example
 #### latency + throughput
-./vllm_benchmark_report.sh -s all -m NousResearch/Meta-Llama-3-8B -g 1 -d float16
+```sh
+./vllm_benchmark_report.sh -s all -m meta-llama/Meta-Llama-3.1-8B-Instruct -g 1 -d float16
+```
 #### latency 
-./vllm_benchmark_report.sh -s latency -m NousResearch/Meta-Llama-3-8B -g 1 -d float16
+```sh
+./vllm_benchmark_report.sh -s latency -m meta-llama/Meta-Llama-3.1-8B-Instruct -g 1 -d float16
+```
 #### throughput
-./vllm_benchmark_report.sh -s throughput -m NousResearch/Meta-Llama-3-8B -g 1 -d float16
+```sh
+./vllm_benchmark_report.sh -s throughput -m meta-llama/Meta-Llama-3.1-8B-Instruct -g 1 -d float16
 ```
