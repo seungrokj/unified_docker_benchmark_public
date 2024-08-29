@@ -1,4 +1,29 @@
-#!/usr/bin/bash
+#!/bin/bash
+###############################################################################
+#
+# MIT License
+#
+# Copyright (c) 2024 Advanced Micro Devices, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in all
+# copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+#################################################################################
 
 ## Usage: 
 #./vllm_benchmark_report.sh -s $mode -m $hf_model -g $n_gpu -d $datatype
@@ -44,12 +69,14 @@ InThroughput="128 2048"
 OutThroughput="128 2048"
 
 report_dir="reports_${dtype}"
+report_summary_dir="${report_dir}/summary"
 tool_latency="/app/vllm/benchmarks/benchmark_latency.py"
 tool_throughput="/app/vllm/benchmarks/benchmark_throughput.py"
 tool_report="vllm_benchmark_report.py"
 n_warm=3
 n_itr=5
 mkdir -p $report_dir
+mkdir -p $report_summary_dir
 
 if [ "$scenario" == "latency" ] || [ "$scenario" == "all" ]; then
     echo "[INFO] LATENCY"
@@ -60,7 +87,7 @@ if [ "$scenario" == "latency" ] || [ "$scenario" == "all" ]; then
         for bat in $Bat;
         do
             outjson=${report_dir}/${model_name}_${mode}_prefill_bs${bat}_in${inp}_out${out}_${dtype}.json
-            outcsv=${report_dir}/${model_name}_${mode}_report.csv
+            outcsv=${report_summary_dir}/${model_name}_${mode}_report.csv
             echo $model $mode $bat $tp $inp $out
             if [ $tp -eq 1 ]; then
                 python3 $tool_latency --model $model --batch-size $bat -tp $tp --input-len $inp --output-len $out --num-iters-warmup $n_warm --num-iters $n_itr --trust-remote-code --dtype $dtype --enforce-eager --output-json $outjson
@@ -76,7 +103,7 @@ if [ "$scenario" == "latency" ] || [ "$scenario" == "all" ]; then
         for out in $OutLatency;
         do
             outjson=${report_dir}/${model_name}_${mode}_decoding_bs${bat}_in${inp}_out${out}_${dtype}.json
-            outcsv=${report_dir}/${model_name}_${mode}_report.csv
+            outcsv=${report_summary_dir}/${model_name}_${mode}_report.csv
             echo $model $mode $bat $tp $inp $out
             if [ $tp -eq 1 ]; then
                 python3 $tool_latency --model $model --batch-size $bat -tp $tp --input-len $inp --output-len $out --num-iters-warmup $n_warm --num-iters $n_itr --trust-remote-code --dtype $dtype --enforce-eager --output-json $outjson
@@ -98,7 +125,7 @@ if [ "$scenario" == "throughput" ] || [ "$scenario" == "all" ]; then
             for inp in $InThroughput;
             do
                 outjson=${report_dir}/${model_name}_${mode}_req${req}_in${inp}_out${out}_${dtype}.json
-                outcsv=${report_dir}/${model_name}_${mode}_report.csv
+                outcsv=${report_summary_dir}/${model_name}_${mode}_report.csv
                 echo $model $mode $req $tp $inp $out
                 if [ $tp -eq 1 ]; then
                     python3 $tool_throughput --model $model --num-prompts $req -tp $tp --input-len $inp --output-len $out --trust-remote-code --dtype $dtype --enforce-eager --output-json $outjson
