@@ -92,7 +92,7 @@ if [ "$scenario" == "latency" ] || [ "$scenario" == "all" ]; then
             if [ $tp -eq 1 ]; then
                 python3 $tool_latency --model $model --batch-size $bat -tp $tp --input-len $inp --output-len $out --num-iters-warmup $n_warm --num-iters $n_itr --trust-remote-code --dtype $dtype --enforce-eager --output-json $outjson
             else
-                torchrun --standalone --nnodes 1 --nproc-per-node $tp $tool_latency --model $model --batch-size $bat -tp $tp --input-len $inp --output-len $out --num-iters-warmup $n_warm --num-iters $n_itr --trust-remote-code --dtype $dtype --output-json $outjson
+                python3 $tool_latency --model $model --batch-size $bat -tp $tp --input-len $inp --output-len $out --num-iters-warmup $n_warm --num-iters $n_itr --trust-remote-code --dtype $dtype --output-json $outjson --distributed-executor-backend "mp"
             fi
             python3 $tool_report --mode ${mode} --model $model_name --batch-size $bat --tp $tp --input-len $inp --output-len $out --dtype $dtype --input-json $outjson --output-csv $outcsv
         done
@@ -108,7 +108,7 @@ if [ "$scenario" == "latency" ] || [ "$scenario" == "all" ]; then
             if [ $tp -eq 1 ]; then
                 python3 $tool_latency --model $model --batch-size $bat -tp $tp --input-len $inp --output-len $out --num-iters-warmup $n_warm --num-iters $n_itr --trust-remote-code --dtype $dtype --enforce-eager --output-json $outjson
             else
-                torchrun --standalone --nnodes 1 --nproc-per-node $tp $tool_latency --model $model --batch-size $bat -tp $tp --input-len $inp --output-len $out --num-iters-warmup $n_warm --num-iters $n_itr --trust-remote-code --dtype $dtype --output-json $outjson
+                python3 $tool_latency --model $model --batch-size $bat -tp $tp --input-len $inp --output-len $out --num-iters-warmup $n_warm --num-iters $n_itr --trust-remote-code --dtype $dtype --output-json $outjson --distributed-executor-backend "mp"
             fi
             python3 $tool_report --mode ${mode} --model $model_name --batch-size $bat --tp $tp --input-len $inp --output-len $out --dtype $dtype --input-json $outjson --output-csv $outcsv
         done
@@ -130,7 +130,7 @@ if [ "$scenario" == "throughput" ] || [ "$scenario" == "all" ]; then
                 if [ $tp -eq 1 ]; then
                     python3 $tool_throughput --model $model --num-prompts $req -tp $tp --input-len $inp --output-len $out --trust-remote-code --dtype $dtype --enforce-eager --output-json $outjson
                 else
-                    torchrun --standalone --nnodes 1 --nproc-per-node $tp $tool_throughput --model $model --num-prompts $req -tp $tp --input-len $inp --output-len $out --trust-remote-code --dtype $dtype --output-json $outjson
+                    python3 $tool_throughput --model $model --num-prompts $req -tp $tp --input-len $inp --output-len $out --trust-remote-code --dtype $dtype --output-json $outjson --distributed-executor-backend "mp"
                 fi
                 python3 $tool_report --mode $mode --model $model_name --num-prompts $req --tp $tp --input-len $inp --output-len $out --dtype $dtype --input-json $outjson --output-csv $outcsv
             done
