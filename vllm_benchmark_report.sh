@@ -27,6 +27,7 @@
 
 ## Usage: 
 #./vllm_benchmark_report.sh -s $mode -m $hf_model -g $n_gpu -d $datatype
+
 ## example:
 ## latency + throughput
 #./vllm_benchmark_report.sh -s all -m NousResearch/Meta-Llama-3-8B -g 1 -d float16
@@ -49,20 +50,34 @@ echo "MODEL: $model ";
 # args
 model_org_name=(${model//// })
 model_name=${model_org_name[1]}
-dtype=$datatype
 tp=$numgpu
+
+if [ $tp -eq 1 ]; then
+    DIST_BE=" --enforce-eager "
+else
+    DIST_BE=" --distributed-executor-backend mp "
+fi
+
+if [[ $datatype = "float16" ]]; then
+    DTYPE=" --dtype float16 "	
+elif [[ $datatype == "float8" ]]; then
+    DTYPE=" --dtype float16 --quantization fp8 --kv-cache-dtype fp8 " 
+fi
+
+OPTION_LATENCY=" --gpu-memory-utilization 0.99 --num-scheduler-steps 10 "
+OPTION_THROUGHPUT=" --gpu-memory-utilization 0.99 --num-scheduler-steps 128 --max-num-seqs 1000 "
 
 # latency conditions
 Bat="1 2 4 8 16 32 64 128 256"
 InLatency="128 2048"
-OutLatency="128 2048"
+OutLatency="1 128 2048"
 
 # throughput conditions
 Req="256 2000"
 InThroughput="128 2048"
 OutThroughput="128 2048"
 
-report_dir="reports_${dtype}"
+report_dir="reports_${datatype}"
 report_summary_dir="${report_dir}/summary"
 tool_latency="/app/vllm/benchmarks/benchmark_latency.py"
 tool_throughput="/app/vllm/benchmarks/benchmark_throughput.py"
@@ -72,42 +87,23 @@ n_itr=5
 mkdir -p $report_dir
 mkdir -p $report_summary_dir
 
-if [ $tp -eq 1 ]; then
-    DIST_BE=" --enforce-eager "
-else
-    DIST_BE=" --distributed-executor-backend mp "
-fi
 
 if [ "$scenario" == "latency" ] || [ "$scenario" == "all" ]; then
     echo "[INFO] LATENCY"
     mode="latency"
-    # prefill
-    out=1
-	for inp in $InLatency;
-	do
-	    for bat in $Bat;
-	    do
-		outjson=${report_dir}/${model_name}_${mode}_prefill_bs${bat}_in${inp}_out${out}_${dtype}.json
-		outcsv=${report_summary_dir}/${model_name}_${mode}_report.csv
-		echo $model $mode $bat $tp $inp $out
-		python3 $tool_latency --model $model --batch-size $bat -tp $tp --input-len $inp --output-len $out --num-iters-warmup $n_warm --num-iters $n_itr --trust-remote-code --dtype $dtype --output-json $outjson $DIST_BE
-		python3 $tool_report --mode ${mode} --model $model_name --batch-size $bat --tp $tp --input-len $inp --output-len $out --dtype $dtype --input-json $outjson --output-csv $outcsv
-	    done
-	done
-    # e2e
     for out in $OutLatency;
     do
-	for inp in $InLatency;
-	do
-	    for bat in $Bat;
-	    do
-		outjson=${report_dir}/${model_name}_${mode}_decoding_bs${bat}_in${inp}_out${out}_${dtype}.json
-		outcsv=${report_summary_dir}/${model_name}_${mode}_report.csv
-		echo $model $mode $bat $tp $inp $out
-		python3 $tool_latency --model $model --batch-size $bat -tp $tp --input-len $inp --output-len $out --num-iters-warmup $n_warm --num-iters $n_itr --trust-remote-code --dtype $dtype --enforce-eager --output-json $outjson $DIST_BE
-		python3 $tool_report --mode ${mode} --model $model_name --batch-size $bat --tp $tp --input-len $inp --output-len $out --dtype $dtype --input-json $outjson --output-csv $outcsv
-	    done
-	done
+        for inp in $InLatency;
+        do
+            for bat in $Bat;
+            do
+                outjson=${report_dir}/${model_name}_${mode}_decoding_bs${bat}_in${inp}_out${out}_${datatype}.json
+                outcsv=${report_summary_dir}/${model_name}_${mode}_report.csv
+                echo $model $mode $bat $tp $inp $out
+                python3 $tool_latency --model $model --batch-size $bat -tp $tp --input-len $inp --output-len $out --num-iters-warmup $n_warm --num-iters $n_itr --trust-remote-code --enforce-eager --output-json $outjson $DTYPE $DIST_BE $OPTION_LATENCY
+                python3 $tool_report --mode $mode --model $model_name --batch-size $bat --tp $tp --input-len $inp --output-len $out $dtype --input-json $outjson --output-csv $outcsv
+            done
+        done
     done
 fi
 
@@ -120,11 +116,11 @@ if [ "$scenario" == "throughput" ] || [ "$scenario" == "all" ]; then
         do
             for inp in $InThroughput;
             do
-                outjson=${report_dir}/${model_name}_${mode}_req${req}_in${inp}_out${out}_${dtype}.json
+                outjson=${report_dir}/${model_name}_${mode}_req${req}_in${inp}_out${out}_${datatype}.json
                 outcsv=${report_summary_dir}/${model_name}_${mode}_report.csv
                 echo $model $mode $req $tp $inp $out
-		python3 $tool_throughput --model $model --num-prompts $req -tp $tp --input-len $inp --output-len $out --trust-remote-code --dtype $dtype --enforce-eager --output-json $outjson $DIST_BE
-                python3 $tool_report --mode $mode --model $model_name --num-prompts $req --tp $tp --input-len $inp --output-len $out --dtype $dtype --input-json $outjson --output-csv $outcsv
+                python3 $tool_throughput --model $model --num-prompts $req -tp $tp --input-len $inp --output-len $out --trust-remote-code --output-json $outjson $DTYPE $DIST_BE $OPTION_THROUGHPUT
+                python3 $tool_report --mode $mode --model $model_name --num-prompts $req --tp $tp --input-len $inp --output-len $out $dtype --input-json $outjson --output-csv $outcsv
             done
         done
     done
